@@ -155,29 +155,15 @@ def plot_lines(original, df, show = False):
 
 def main():
     df = load_curvature_file()
-    #dist_threshold = calculate_distance_tolerance(df)
-    #df['clustering'] = hac_clustering(df, 'single', dist_threshold)
-    #df = remove_small_clusters(df, min_points = 3) # 3 is minimum input
-    #df.to_pickle('TestSet')
-
-    #df = pd.read_pickle('TestSet')
-    #df = clusters_to_lines(df, dist_threshold = 272)
-    #df.to_pickle('TestSetLines')
-
     original = df.copy()
-    df = pd.read_pickle('TestSetLines')
-
+    dist_threshold = calculate_distance_tolerance(df)
+    df['clustering'] = hac_clustering(df, 'single', dist_threshold)
+    df = remove_small_clusters(df, min_points = 3) # 3 is minimum input
+    df = clusters_to_lines(df, dist_threshold = 272)
     df = df[df.Line > 0]
     df = df.sort_values(['FID'])
     df = remove_small_clusters(df, 'Line', min_points = 3)
-
     plot_lines(original, df, show = True)
-
-    #print df.head(50)
-
-    #df = df.sort_values(['FID'])
-    #print df.head(10)
-    #print df[df.Line == 14]
 
 
 if __name__=='__main__':

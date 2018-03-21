@@ -2,7 +2,7 @@
 # Created: March 20th, 2018
 
 """
-This script will organize point data into lines, intended to be used on
+This interactive script organizes point data into lines, intended to be used on
 curvature extrema point data (see Phillips et al., 2007, The use of
 curvature in potential-field interpretation)
 """

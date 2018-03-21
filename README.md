@@ -1,6 +1,6 @@
 # Maxspots Curvature
 
-![](maxspots_curvature/images/curvature_map_geophysics.JPG "Curvature lineaments")
+![](https://github.com/nda-github/maxspots_curvature/blob/master/images/curvature_map_geophysics.JPG "Curvature lineaments")
 
 # What is it?
 
@@ -8,4 +8,4 @@
 
 # What does it look like?
 
-![](maxspots_curvature/images/map.JPG "Maxspots output")
+![](https://github.com/nda-github/maxspots_curvature/blob/master/images/map.JPG "Maxspots output")

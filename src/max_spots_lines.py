@@ -28,7 +28,7 @@ def welcome_message():
     print '******************************* CURVATURE LINES ******************************* \n'
     print '******************************************************************************* \n'
     print '@author Noah Athens \n'
-    print '@repository github.com/nda-github/maxspots_curvature\n'
+    print '@repository https://github.com/nathens/maxspots_curvature\n'
     print '@version 3/20/2018 \n'
     print 'This program organizes point data resulting from the usgs_curv4.gx into lines. \n'
     print 'To use this program, export the curvature database as a CSV file \n'

@@ -1,81 +1,78 @@
+# max_spots_lines.py
+# Created: March 20th, 2018
+
+"""
+This script will organize point data into lines, intended to be used on
+curvature extrema point data (see Phillips et al., 2007, The use of
+curvature in potential-field interpretation)
+"""
 import sys
 import pandas as pd
 import numpy as np
 import scipy.spatial.distance as spdist
 from random import choice
 import os.path
+import time
+pd.options.mode.chained_assignment = None  # default='warn'
 
 
-def update_progress(progress):
-    """Displays progress bar"""
-    barLength = 10
-    status = ""
-    if isinstance(progress, int):
-        progress = float(progress)
-    if not isinstance(progress, float):
-        progress = 0
-        status = "error: progress var must be float\r\n"
-    if progress < 0:
-        progress = 0
-        status = "Halt...\r\n"
-    if progress >=1:
-        progress = 1
-        status = "Done....\r\n"
-    block = int(round(barLength*progress))
-    text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength - block), progress*100, status)
-    sys.stdout.write(text)
+def update_progress(part, total):
+    """Displays progress in percent """
+    progress = 100 * (float(part) / total)
+    sys.stdout.write("\rProgram progress: %d%%" % progress)
     sys.stdout.flush()
     return None
 
-def is_number(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
-
 def welcome_message():
-    print '********************************************************************* \n'
-    print '************************** CURVATURE LINES ************************** \n'
-    print '********************************************************************* \n'
+    """ Prints welcome message to user"""
+    print '******************************************************************************* \n'
+    print '******************************* CURVATURE LINES ******************************* \n'
+    print '******************************************************************************* \n'
     print '@author Noah Athens \n'
-    print '@version 3/15/2018 \n'
+    print '@version 3/20/2018 \n'
     print 'This program connects extrema point data resulting from the usgs_curv4.gx\n'
     print 'into lines. To use this program, export the curvature database as a CSV file \n'
-    print '(including header).\n'
+    print '(including header). Coordinates should be projected and labeled "X" and "Y".\n'
     print 'Example header: \n'
     print 'ID,Z1,Z2,Z3,Z4,Z5,Z6,X,Y,X2,Y2,__X,__Y\n'
     return None
 
-def get_inputs_from_user():
+def run_again():
+    """ Print completed message and prompt user """
     print '\n'
-    while (True):
-        fname = raw_input('Enter curvature filename: ')
+    print 'Program completed. Output file exported to current directory \n\n'
+    answer = raw_input("Process another file? [y/n]: ")
+    return answer[0].lower() == 'y'
+
+def prompt_user_for_number(prompt):
+    """ Prompts user for valid numeric input """
+    print '\n'
+    while True:
+        num = raw_input(prompt)
+        try:
+            float(num)
+            break
+        except ValueError:
+            print '\n' + num + ' is not a valid number.\n'
+    return float(num)
+
+def prompt_user_for_file(prompt):
+    """ Prompts user for valid filename """
+    print '\n'
+    while True:
+        fname = raw_input(prompt)
         if os.path.isfile(fname):
             break
-        else: print '\n ' + fname + ' is not a valid file.\n'
-    print '\n'
-    while (True):
-        dist_tol = raw_input('Maximum distance between points [e.g. 400]: ')
-        if is_number(dist_tol):
-            dist_tol = int(dist_tol)
-            break
-        else: print '\n' + dist_tol + ' is not a valid number.\n'
-    print '\n'
-    while (True):
-        azimuth_tol = raw_input('Maximum deviation of azimuth between two segments [e.g. 35]: ')
-        if is_number(azimuth_tol):
-            azimuth_tol = int(azimuth_tol)
-            break
-        else: print '\n' + azimuth_tol + ' is not a valid number.\n'
-    print '\r'
-    while (True):
-        min_line_segments = raw_input('Minimum number of segments in a line [e.g. 3]: ')
-        if is_number(min_line_segments):
-            min_line_segments = int(min_line_segments)
-            break
-        else: print '\n' + min_line_segments + ' is not a valid number.\n'
-    print '\n'
+        else: print '\n' + fname + ' is not a valid file.\n'
+    return fname
+
+def get_inputs_from_user():
+    """ Returns inputs from user """
+    fname = prompt_user_for_file('Enter curvature filename [e.g. somedatabase.csv] : ')
+    dist_tol = prompt_user_for_number('Enter distance tolerance between points [e.g. 400]: ')
+    azimuth_tol = prompt_user_for_number('Enter azimuth tolerance between two segments [e.g. 35]: ')
+    min_line_segments = prompt_user_for_number('Enter minimum number of segments in a line [e.g. 3]: ')
+    print '\n' # Line break before program executes
     return fname, [dist_tol, azimuth_tol, min_line_segments]
 
 def azimuth_difference(azimuth1, azimuth2):
@@ -164,7 +161,7 @@ def get_lines(data, params):
     line_num = 1
     num_points = data.shape[0]
     while (toVisit):
-        update_progress((num_points - len(toVisit))/float(num_points))
+        update_progress(num_points - len(toVisit), num_points)
         curr = choice(toVisit)
         best_path = find_best_path(curr, data, marked, params)
         if best_path:
@@ -177,32 +174,33 @@ def get_lines(data, params):
             toVisit.remove(curr)
     return line_map
 
+def export_dataframe(fname, params, df, line_map):
+    df['Line'] = -1
+    df['FID'] = -1
+    for line_num, path in line_map.iteritems():
+        fid = 1
+        for idx in path:
+            df.at[idx, 'Line'] = line_num
+            df.at[idx, 'FID'] = fid
+            fid += 1
+    df = df.loc[df['Line'] != -1]
+    df.sort_values(by = ['Line', 'FID'], inplace=True)
+    df.drop(['FID'], axis=1, inplace=True)
+    out_name = fname[:-4] + '_LINES_' + str(params[0]) + '_' + str(params[1]) + '_' + str(params[2]) + '.csv'
+    df.to_csv(out_name, index=False)
+    return None
+
 def main():
     welcome_message()
-    while (True):
+    while True:
         fname, params = get_inputs_from_user()
         df = pd.read_csv(fname)
         data = df[['X', 'Y']].values
         line_map = get_lines(data, params)
-        df['Line'] = -1
-        df['FID'] = -1
-        for line_num, path in line_map.iteritems():
-            fid = 1
-            for idx in path:
-                df.at[idx, 'Line'] = line_num
-                df.at[idx, 'FID'] = fid
-                fid += 1
-        df = df.loc[df['Line'] != -1]
-        df.sort_values(by = ['Line', 'FID'], inplace=True)
-        df.drop(['FID'], axis=1, inplace=True)
-        out_name = fname[:-4] + '_LINES_' + str(params[0]) + '_' + str(params[1]) + '_' + str(params[2]) + '.csv'
-        df.to_csv(out_name, index=False)
-        print '\n\n'
-        print 'Program completed. Output file exported to current directory \n\n'
-        another_file = raw_input("Process another file? [y/n]: ")
-        if another_file[0].lower() != 'y':
+        export_dataframe(fname, params, df, line_map)
+        if not run_again():
             break
-    end = raw_input("Hit any key to quit: ")
+    end = raw_input("Hit any key to quit: ") # Keeps console window open
 
 
 

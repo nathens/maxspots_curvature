@@ -23,17 +23,17 @@ def update_progress(part, total):
     return None
 
 def welcome_message():
-    """ Prints welcome message to user"""
+    """ Prints welcome message to user """
     print '******************************************************************************* \n'
     print '******************************* CURVATURE LINES ******************************* \n'
     print '******************************************************************************* \n'
     print '@author Noah Athens \n'
+    print '@repository github.com/nda-github/maxspots_curvature\n'
     print '@version 3/20/2018 \n'
-    print 'This program connects extrema point data resulting from the usgs_curv4.gx\n'
-    print 'into lines. To use this program, export the curvature database as a CSV file \n'
-    print '(including header). Coordinates should be projected and labeled "X" and "Y".\n'
-    print 'Example header: \n'
-    print 'ID,Z1,Z2,Z3,Z4,Z5,Z6,X,Y,X2,Y2,__X,__Y\n'
+    print 'This program organizes point data resulting from the usgs_curv4.gx into lines. \n'
+    print 'To use this program, export the curvature database as a CSV file \n'
+    print '(including header). Coordinates must be projected and labeled "X" and "Y".\n'
+    print 'Example header: ID,Z1,Z2,Z3,Z4,Z5,Z6,X,Y,X2,Y2,__X,__Y\n'
     return None
 
 def run_again():
@@ -137,7 +137,7 @@ def get_neighbors(curr, data, marked, params, path = []):
     return [x for x in neighbors if x not in marked and x not in path and x != curr]
 
 def find_best_path(curr, data, marked, params):
-    """ Returns the best path of multiple possible paths"""
+    """ Returns the path with the most segments """
     neighbors = get_neighbors(curr, data, marked, params)
     possible_paths = []
     for next in neighbors:
@@ -174,7 +174,7 @@ def get_lines(data, params):
     return line_map
 
 def export_dataframe(fname, params, df, line_map):
-    """ Dataframe is updated with lines and exported.
+    """ Updates dataframe with lines and write to current directory.
     Params are converted to int for fname string.
      """
     df['Line'] = -1

@@ -14,7 +14,6 @@ from random import choice
 import os.path
 pd.options.mode.chained_assignment = None  # default='warn'
 
-
 def update_progress(part, total):
     """Displays progress in percent """
     progress = 100 * (float(part) / total)
@@ -36,7 +35,7 @@ def welcome_message():
     print 'Example header: ID,Z1,Z2,Z3,Z4,Z5,Z6,X,Y,X2,Y2,__X,__Y\n'
     return None
 
-def run_again():
+def user_end_action():
     """ Print completed message and prompt user """
     print '\n'
     print 'Program completed. Output file exported to current directory \n\n'
@@ -101,12 +100,12 @@ def evaluate_point_score(dist, deviation, params):
     dev_score = 50.0 * (params[1] - deviation) / params[1]
     return dist_score + dev_score
 
-def grow_path(path, data, marked, params):
+def grow_path(path, grid, bounds, data, visited, params):
     """ Adds points to path """
-    while (True):
+    while True:
         azimuth = get_azimuth(data[path[-2]], data[path[-1]])
         curr = path[-1]
-        neighbors = get_neighbors(curr, data, marked, params, path)
+        neighbors = get_neighbors(curr, grid, bounds, data, visited, params, path)
         best_next = []
         for next in neighbors:
             azimuth_next = get_azimuth(data[path[-1]], data[next])
@@ -130,22 +129,39 @@ def evaluate_possible_paths(possible_paths):
             best = i
     return possible_paths[best]
 
-def get_neighbors(curr, data, marked, params, path = []):
+def valid_neighbors(neighbors, data, curr, visited, dist, path):
+    """ Returns neighbors within distance tolerance and not visited or in path """
+    neighbors = [x for sublist in neighbors for x in sublist]
+    result = []
+    for idx in neighbors:
+        if (np.linalg.norm(data[idx] - data[curr]) < dist):
+            if (idx not in visited and idx not in path and idx != curr):
+                result.append(idx)
+    return result
+
+def get_neighbors(curr, grid, tfun, data, visited, params, path = []):
     """ Returns neighbor nodes in a list.
     Neighbors are defined as being within distance tolerance, not in path,
     and not current node. """
-    neighbors = (np.linalg.norm(data - data[curr], axis=1) < params[0]).nonzero()[0]
-    return [x for x in neighbors if x not in marked and x not in path and x != curr]
+    row, col = tfun(data[curr])
+    neighbors = []
+    # loop through neighbor cells, grid is padded with empty rows/cols
+    for i in range(row - 1, row + 2):
+        if i >= 0:
+            for j in range(col - 1, col + 2):
+                if j >= 0:
+                    neighbors.append(list(grid[i, j]))
+    return valid_neighbors(neighbors, data, curr, visited, params[0], path)
 
-def find_best_path(curr, data, marked, params):
+def find_best_path(curr, grid, tfun, data, visited, params):
     """ Returns the path with the most segments """
-    neighbors = get_neighbors(curr, data, marked, params)
+    neighbors = get_neighbors(curr, grid, tfun, data, visited, params)
     possible_paths = []
     for next in neighbors:
         path = [curr, next]
-        path = grow_path(path, data, marked, params)
+        path = grow_path(path, grid, tfun, data, visited, params)
         path.reverse()
-        path = grow_path(path, data, marked, params)
+        path = grow_path(path, grid, tfun, data, visited, params)
         if len(path) > params[2]: # Check number of segments in path
             possible_paths.append(path)
     if possible_paths:
@@ -153,39 +169,39 @@ def find_best_path(curr, data, marked, params):
     else:
         return []
 
-def get_lines(data, params):
+def find_lines(grid, tfun, data, params):
     """ Main routine for finding paths to connect points """
-    line_map = {} # line number: indices of path
-    marked = set() # Keep track of assigned points
-    toVisit = range(data.shape[0])
-    line_num = 1
+    lines = [] # Keep track of line paths
+    visited = set() # Keep track of assigned points
+    explore = range(data.shape[0])
     num_points = data.shape[0]
-    while (toVisit):
-        update_progress(num_points - len(toVisit), num_points)
-        curr = choice(toVisit)
-        best_path = find_best_path(curr, data, marked, params)
+    while explore:
+        update_progress(num_points - len(explore), num_points)
+        curr = choice(explore)
+        best_path = find_best_path(curr, grid, tfun, data, visited, params)
         if best_path:
-            line_map[line_num] = best_path
-            for x in best_path: marked.add(x)
-            [toVisit.remove(x) for x in best_path]
-            line_num += 1
+            lines.append(best_path)
+            for x in best_path: visited.add(x)
+            [explore.remove(x) for x in best_path]
         else:
-            marked.add(curr)
-            toVisit.remove(curr)
-    return line_map
+            visited.add(curr)
+            explore.remove(curr)
+    return lines
 
-def export_dataframe(fname, params, df, line_map):
+def export_database_with_lines(fname, params, df, lines):
     """ Updates dataframe with lines and write to current directory.
     Params are converted to int for fname string.
      """
     df['Line'] = -1
     df['FID'] = -1
-    for line_num, path in line_map.iteritems():
+    line_num = 1
+    for i, path in enumerate(lines):
         fid = 1
         for idx in path:
             df.at[idx, 'Line'] = line_num
             df.at[idx, 'FID'] = fid
             fid += 1
+        line_num += 1
     df = df.loc[df['Line'] != -1]
     df.sort_values(by = ['Line', 'FID'], inplace=True)
     df.drop(['FID'], axis=1, inplace=True)
@@ -193,15 +209,35 @@ def export_dataframe(fname, params, df, line_map):
     df.to_csv(out_name, index=False)
     return None
 
+def upscaled_fun(bounds, dist):
+    """ Returns function for upscaled grid indices given lower left location of data """
+    def transform(coords):
+        loc = (coords - [bounds[0], bounds[2]]) / dist
+        return int(loc[1]), int(loc[0])
+    return transform
+
+def upscale_data(data, dist, bounds):
+    """ Upscales data to grid with cell size equal to distance tolerance """
+    num_cols = int((bounds[1] - bounds[0]) / dist) + 3 # protects out of bounds
+    num_rows = int((bounds[3] - bounds[2]) / dist) + 3
+    grid = np.asarray([set() for x in range(num_cols * num_rows)])
+    grid = grid.reshape((num_rows, num_cols))
+    tfun = upscaled_fun(bounds, dist) # upscaled grid indexing
+    for idx, coords in enumerate(data):
+        grid[tfun(coords)].add(idx)
+    return grid, tfun
+
 def main():
     welcome_message()
     while True:
         fname, params = get_inputs_from_user()
         df = pd.read_csv(fname)
         data = df[['X', 'Y']].values
-        line_map = get_lines(data, params)
-        export_dataframe(fname, params, df, line_map)
-        if not run_again():
+        bounds = [data[:,0].min(), data[:,0].max(), data[:,1].min(), data[:,1].max()]
+        grid, tfun = upscale_data(data, params[0], bounds)
+        lines = find_lines(grid, tfun, data, params)
+        export_database_with_lines(fname, params, df, lines)
+        if not user_end_action():
             break
     end = raw_input("Hit any key to quit: ") # Keeps console window open
 

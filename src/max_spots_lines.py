@@ -12,14 +12,13 @@ import numpy as np
 import scipy.spatial.distance as spdist
 from random import choice
 import os.path
-import time
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
 def update_progress(part, total):
     """Displays progress in percent """
     progress = 100 * (float(part) / total)
-    sys.stdout.write("\rProgram progress: %d%%" % progress)
+    sys.stdout.write("\rProgram progress:  %d%%" % progress)
     sys.stdout.flush()
     return None
 
@@ -135,7 +134,7 @@ def get_neighbors(curr, data, marked, params, path = []):
     Neighbors are defined as being within distance tolerance, not in path,
     and not current node. """
     neighbors = (np.linalg.norm(data - data[curr], axis=1) < params[0]).nonzero()[0]
-    return [x for x in neighbors if not marked[x] and x not in path and x != curr]
+    return [x for x in neighbors if x not in marked and x not in path and x != curr]
 
 def find_best_path(curr, data, marked, params):
     """ Returns the best path of multiple possible paths"""
@@ -156,7 +155,7 @@ def find_best_path(curr, data, marked, params):
 def get_lines(data, params):
     """ Main routine for finding paths to connect points """
     line_map = {} # line number: indices of path
-    marked = [False] * data.shape[0] # Keep track of assigned points
+    marked = set() # Keep track of assigned points
     toVisit = range(data.shape[0])
     line_num = 1
     num_points = data.shape[0]
@@ -166,11 +165,11 @@ def get_lines(data, params):
         best_path = find_best_path(curr, data, marked, params)
         if best_path:
             line_map[line_num] = best_path
-            for x in best_path: marked[x] = True
+            for x in best_path: marked.add(x)
             [toVisit.remove(x) for x in best_path]
             line_num += 1
         else:
-            marked[curr] = True
+            marked.add(curr)
             toVisit.remove(curr)
     return line_map
 

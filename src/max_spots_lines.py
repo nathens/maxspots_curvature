@@ -62,17 +62,31 @@ def prompt_user_for_file(prompt):
         else: print '\n' + fname + ' is not a valid file.\n'
     return fname
 
-def get_inputs_from_user():
+def get_inputs_from_user(nearest):
     """ Returns inputs from user """
-    fname = prompt_user_for_file('Enter curvature filename [e.g. somedatabase.csv] : ')
     print '\n' # Line break
+    print 'Average nearest point distance: ' + str('%1.2f' % nearest)
+    dist_tol = int(nearest * 1.75) # Suggested distance tolerance
+    print 'Suggested distance tolerance: ' + str(dist_tol)
+    print '\n'
     dist_tol = prompt_user_for_number('Enter distance tolerance between points [e.g. 400]: ')
     print '\n'
     azimuth_tol = prompt_user_for_number('Enter azimuth tolerance between two segments [e.g. 35]: ')
     print '\n'
     min_line_segments = prompt_user_for_number('Enter minimum number of segments in a line [e.g. 3]: ')
     print '\n'
-    return fname, [dist_tol, azimuth_tol, min_line_segments]
+    return [dist_tol, azimuth_tol, min_line_segments]
+
+def suggested_distance_tolerance(data):
+    """ Returns approximate mean closest point distance for distance tolerance """
+    total = 0
+    num = 200
+    if data.shape[0] < num:
+        num = data.shape
+    for i in range(num):
+        total += np.sort(np.linalg.norm(data - data[i,:], axis = 1))[1]
+    mean = total / num
+    return mean
 
 def azimuth_difference(azimuth1, azimuth2):
     """ Returns difference of two azimuths in degrees """
@@ -230,9 +244,11 @@ def upscale_data(data, dist, bounds):
 def main():
     welcome_message()
     while True:
-        fname, params = get_inputs_from_user()
+        fname = prompt_user_for_file('Enter curvature filename [e.g. somedatabase.csv] : ')
         df = pd.read_csv(fname)
         data = df[['X', 'Y']].values
+        mean_nearest = suggested_distance_tolerance(data)
+        params = get_inputs_from_user(mean_nearest)
         bounds = [data[:,0].min(), data[:,0].max(), data[:,1].min(), data[:,1].max()]
         grid, tfun = upscale_data(data, params[0], bounds)
         lines = find_lines(grid, tfun, data, params)

@@ -69,7 +69,7 @@ def get_inputs_from_user(nearest):
     dist_tol = int(nearest * 1.75) # Suggested distance tolerance
     print 'Suggested distance tolerance: ' + str(dist_tol)
     print '\n'
-    dist_tol = prompt_user_for_number('Enter distance tolerance between points [e.g. 400]: ')
+    dist_tol = prompt_user_for_number('Enter distance tolerance between points [e.g. ' + str(dist_tol) + ']: ')
     print '\n'
     azimuth_tol = prompt_user_for_number('Enter azimuth tolerance between two segments [e.g. 35]: ')
     print '\n'

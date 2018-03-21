@@ -45,7 +45,6 @@ def run_again():
 
 def prompt_user_for_number(prompt):
     """ Prompts user for valid numeric input """
-    print '\n'
     while True:
         num = raw_input(prompt)
         try:
@@ -57,7 +56,6 @@ def prompt_user_for_number(prompt):
 
 def prompt_user_for_file(prompt):
     """ Prompts user for valid filename """
-    print '\n'
     while True:
         fname = raw_input(prompt)
         if os.path.isfile(fname):
@@ -68,10 +66,13 @@ def prompt_user_for_file(prompt):
 def get_inputs_from_user():
     """ Returns inputs from user """
     fname = prompt_user_for_file('Enter curvature filename [e.g. somedatabase.csv] : ')
+    print '\n' # Line break
     dist_tol = prompt_user_for_number('Enter distance tolerance between points [e.g. 400]: ')
+    print '\n'
     azimuth_tol = prompt_user_for_number('Enter azimuth tolerance between two segments [e.g. 35]: ')
+    print '\n'
     min_line_segments = prompt_user_for_number('Enter minimum number of segments in a line [e.g. 3]: ')
-    print '\n' # Line break before program executes
+    print '\n'
     return fname, [dist_tol, azimuth_tol, min_line_segments]
 
 def azimuth_difference(azimuth1, azimuth2):

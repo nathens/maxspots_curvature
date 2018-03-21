@@ -174,6 +174,9 @@ def get_lines(data, params):
     return line_map
 
 def export_dataframe(fname, params, df, line_map):
+    """ Dataframe is updated with lines and exported.
+    Params are converted to int for fname string.
+     """
     df['Line'] = -1
     df['FID'] = -1
     for line_num, path in line_map.iteritems():
@@ -185,7 +188,7 @@ def export_dataframe(fname, params, df, line_map):
     df = df.loc[df['Line'] != -1]
     df.sort_values(by = ['Line', 'FID'], inplace=True)
     df.drop(['FID'], axis=1, inplace=True)
-    out_name = fname[:-4] + '_LINES_' + str(params[0]) + '_' + str(params[1]) + '_' + str(params[2]) + '.csv'
+    out_name = fname[:-4] + '_LINES_' + str(int(params[0])) + '_' + str(int(params[1])) + '_' + str(int(params[2])) + '.csv'
     df.to_csv(out_name, index=False)
     return None
 

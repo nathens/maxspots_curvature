@@ -1,6 +1,6 @@
 # Maxspots Curvature
 
-![](C:\Users\nathens\Documents\GitHub\maxspots_curvature\figures\curvature_blakely.JPG "Curvature lineaments")
+![](https://github.com/nda-github/maxspots_curvature/blob/master/images/curvature_blakely.JPG "Curvature lineaments")
 
 # What is it?
 

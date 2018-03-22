@@ -14,5 +14,5 @@
 #### 5. Repeat from step 2 until there are no more points to visit.
 
 # What does it look like?
-
+![](https://github.com/nathens/maxspots_curvature/blob/master/images/map_zoom.JPG "Closeup input/output")
 ![](https://github.com/nda-github/maxspots_curvature/blob/master/images/map.JPG "Maxspots output")

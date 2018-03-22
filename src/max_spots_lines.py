@@ -9,7 +9,7 @@ curvature in potential-field interpretation)
 import sys
 import pandas as pd
 import numpy as np
-import scipy.spatial.distance as spdist
+from scipy.spatial.distance import cdist
 from random import choice
 import os.path
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -120,7 +120,7 @@ def grow_path(path, grid, bounds, data, visited, params):
         azimuth = get_azimuth(data[path[-2]], data[path[-1]])
         curr = path[-1]
         neighbors = get_neighbors(curr, grid, bounds, data, visited, params, path)
-        best_next = []
+        best_next = [] # TODO: Use priority queueu
         for next in neighbors:
             azimuth_next = get_azimuth(data[path[-1]], data[next])
             dist_next = np.linalg.norm(data[curr] - data[next], axis = 0) ## Check this
@@ -131,7 +131,7 @@ def grow_path(path, grid, bounds, data, visited, params):
         if not best_next:
             break
         else:
-            best_next = sorted(best_next,key=lambda l:l[1], reverse=True)
+            best_next = sorted(best_next, key = lambda l: l[1], reverse=True)
             path.append(best_next[0][0])
     return path
 
@@ -145,7 +145,6 @@ def evaluate_possible_paths(possible_paths):
 
 def valid_neighbors(neighbors, data, curr, visited, dist, path):
     """ Returns neighbors within distance tolerance and not visited or in path """
-    neighbors = [x for sublist in neighbors for x in sublist]
     result = []
     for idx in neighbors:
         if (np.linalg.norm(data[idx] - data[curr]) < dist):
@@ -164,7 +163,7 @@ def get_neighbors(curr, grid, tfun, data, visited, params, path = []):
         if i >= 0:
             for j in range(col - 1, col + 2):
                 if j >= 0:
-                    neighbors.append(list(grid[i, j]))
+                    neighbors += grid[i, j]
     return valid_neighbors(neighbors, data, curr, visited, params[0], path)
 
 def find_best_path(curr, grid, tfun, data, visited, params):
@@ -232,10 +231,10 @@ def upscaled_fun(bounds, dist):
 
 def upscale_data(data, dist, bounds):
     """ Upscales data to grid with cell size equal to distance tolerance """
-    num_cols = int((bounds[1] - bounds[0]) / dist) + 3 # protects out of bounds
-    num_rows = int((bounds[3] - bounds[2]) / dist) + 3
-    grid = np.asarray([set() for x in range(num_cols * num_rows)])
-    grid = grid.reshape((num_rows, num_cols))
+    ncols = int((bounds[1] - bounds[0]) / dist) + 3 # protects out of bounds
+    nrows = int((bounds[3] - bounds[2]) / dist) + 3
+    grid = np.asarray([set() for x in range(ncols * nrows)])
+    grid = grid.reshape((nrows, ncols))
     tfun = upscaled_fun(bounds, dist) # upscaled grid indexing
     for idx, coords in enumerate(data):
         grid[tfun(coords)].add(idx)

@@ -9,8 +9,9 @@ curvature in potential-field interpretation)
 import sys
 import pandas as pd
 import numpy as np
-from random import choice
+from random import shuffle, sample
 import os.path
+from Queue import Queue
 pd.options.mode.chained_assignment = None  # default='warn'
 
 def update_progress(part, total):
@@ -78,14 +79,14 @@ def get_inputs_from_user(nearest):
 
 def suggested_distance_tolerance(data):
     """ Returns approximate mean closest point distance for distance tolerance """
+    k = data.shape[0]
+    if k > 500:
+        k = 500
+    samples = sample(range(data.shape[0]), k)
     total = 0
-    num = 200
-    if data.shape[0] < num:
-        num = data.shape
-    for i in range(num):
-        total += np.sort(np.linalg.norm(data - data[i,:], axis = 1))[1]
-    mean = total / num
-    return mean
+    for i in samples:
+        total += np.sort(np.linalg.norm(data - data[i,:], axis = 1))[1] # Closest distance point
+    return total / k
 
 def azimuth_difference(azimuth1, azimuth2):
     """ Returns difference of two azimuths in degrees """
@@ -119,10 +120,10 @@ def grow_path(path, grid, bounds, data, visited, params):
         azimuth = get_azimuth(data[path[-2]], data[path[-1]])
         curr = path[-1]
         neighbors = get_neighbors(curr, grid, bounds, data, visited, params, path)
-        best_next = [] # TODO: Use priority queueu
+        best_next = []
         for next in neighbors:
             azimuth_next = get_azimuth(data[path[-1]], data[next])
-            dist_next = np.linalg.norm(data[curr] - data[next], axis = 0) ## Check this
+            dist_next = np.linalg.norm(data[curr] - data[next], axis = 0)
             deviation = azimuth_difference(azimuth, azimuth_next)
             if deviation < params[1]:
                 score = evaluate_point_score(dist_next, deviation, params)
@@ -181,24 +182,13 @@ def find_best_path(curr, grid, tfun, data, visited, params):
     else:
         return []
 
-def find_lines(grid, tfun, data, params):
-    """ Main routine for finding paths to connect points """
-    lines = [] # Keep track of line paths
-    visited = set() # Keep track of assigned points
-    explore = range(data.shape[0])
-    num_points = data.shape[0]
-    while explore:
-        update_progress(num_points - len(explore), num_points)
-        curr = choice(explore)
-        best_path = find_best_path(curr, grid, tfun, data, visited, params)
-        if best_path:
-            lines.append(best_path)
-            for x in best_path: visited.add(x)
-            [explore.remove(x) for x in best_path]
-        else:
-            visited.add(curr)
-            explore.remove(curr)
-    return lines
+def load_queue(num):
+    """ Load a random list of integers of length n into a Queue"""
+    temp = range(num)
+    shuffle(temp)
+    queue = Queue()
+    for x in temp: queue.put(x)
+    return queue
 
 def export_database_with_lines(fname, params, df, lines):
     """ Updates dataframe with lines and write to current directory.
@@ -221,7 +211,7 @@ def export_database_with_lines(fname, params, df, lines):
     df.to_csv(out_name, index=False)
     return None
 
-def upscaled_fun(bounds, dist):
+def upscale_func(bounds, dist):
     """ Returns function for upscaled grid indices given lower left location of data """
     def transform(coords):
         loc = (coords - [bounds[0], bounds[2]]) / dist
@@ -234,10 +224,34 @@ def upscale_data(data, dist, bounds):
     nrows = int((bounds[3] - bounds[2]) / dist) + 3
     grid = np.asarray([set() for x in range(ncols * nrows)])
     grid = grid.reshape((nrows, ncols))
-    tfun = upscaled_fun(bounds, dist) # upscaled grid indexing
+    tfun = upscale_func(bounds, dist) # upscaled grid indexing
     for idx, coords in enumerate(data):
         grid[tfun(coords)].add(idx)
     return grid, tfun
+
+def find_lines(grid, tfun, data, params):
+    """ Returns list of index paths after growing paths from
+    each seed point.
+    """
+    lines = [] # Keep track of line paths
+    visited = set() # Keep track of assigned points
+    num_points = data.shape[0]
+    explore = load_queue(data.shape[0])
+    count_progress = data.shape[0]
+    while not explore.empty():
+        update_progress(num_points - count_progress, num_points)
+        curr = explore.get()
+        if curr not in visited:
+            best_path = find_best_path(curr, grid, tfun, data, visited, params)
+            if best_path:
+                lines.append(best_path)
+                for idx in best_path:
+                    visited.add(idx)
+                    count_progress -= 1
+            else:
+                visited.add(curr)
+                count_progress -= 1
+    return lines
 
 def main():
     welcome_message()

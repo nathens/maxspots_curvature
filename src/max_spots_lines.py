@@ -257,10 +257,14 @@ def main():
     welcome_message()
     while True:
         fname = prompt_user_for_file('Enter curvature filename [e.g. somedatabase.csv] : ')
-        df = pd.read_csv(fname)
-        data = df[['X', 'Y']].values
-        mean_nearest = suggested_distance_tolerance(data)
-        params = get_inputs_from_user(mean_nearest)
+        try:
+            df = pd.read_csv(fname)
+            data = df[['X', 'Y']].values
+        except:
+            print 'Error: ' + fname + ' is not in the correct format.'
+            break
+        avg_closest_point = suggested_distance_tolerance(data)
+        params = get_inputs_from_user(avg_closest_point)
         bounds = [data[:,0].min(), data[:,0].max(), data[:,1].min(), data[:,1].max()]
         grid, tfun = upscale_data(data, params[0], bounds)
         lines = find_lines(grid, tfun, data, params)

@@ -9,7 +9,6 @@ curvature in potential-field interpretation)
 import sys
 import pandas as pd
 import numpy as np
-from scipy.spatial.distance import cdist
 from random import choice
 import os.path
 pd.options.mode.chained_assignment = None  # default='warn'

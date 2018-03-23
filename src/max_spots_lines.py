@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from random import shuffle, sample
 import os.path
-from Queue import Queue
+from Queue import Queue, PriorityQueue
 pd.options.mode.chained_assignment = None  # default='warn'
 
 def update_progress(part, total):
@@ -28,7 +28,7 @@ def welcome_message():
     print '******************************************************************************* \n'
     print '@author Noah Athens \n'
     print '@repository https://github.com/nathens/maxspots_curvature\n'
-    print '@version 3/20/2018 \n'
+    print '@version 3/22/2018 \n'
     print 'This program organizes point data resulting from the usgs_curv4.gx into lines. \n'
     print 'To use this program, export the curvature database as a CSV file \n'
     print '(including header). Coordinates must be projected and labeled "X" and "Y".\n'
@@ -120,19 +120,18 @@ def grow_path(path, grid, bounds, data, visited, params):
         azimuth = get_azimuth(data[path[-2]], data[path[-1]])
         curr = path[-1]
         neighbors = get_neighbors(curr, grid, bounds, data, visited, params, path)
-        best_next = []
+        best_next = PriorityQueue() # Keep track of point with highest priority score
         for next in neighbors:
             azimuth_next = get_azimuth(data[path[-1]], data[next])
             dist_next = np.linalg.norm(data[curr] - data[next], axis = 0)
             deviation = azimuth_difference(azimuth, azimuth_next)
             if deviation < params[1]:
                 score = evaluate_point_score(dist_next, deviation, params)
-                best_next.append([next, score])
-        if not best_next:
+                best_next.put((-score, next))
+        if best_next.empty():
             break
         else:
-            best_next = sorted(best_next, key = lambda l: l[1], reverse=True)
-            path.append(best_next[0][0])
+            path.append(best_next.get()[1])
     return path
 
 def evaluate_possible_paths(possible_paths):
@@ -173,7 +172,7 @@ def find_best_path(curr, grid, tfun, data, visited, params):
     for next in neighbors:
         path = [curr, next]
         path = grow_path(path, grid, tfun, data, visited, params)
-        path.reverse()
+        path.reverse() # Grow path in opposite direction
         path = grow_path(path, grid, tfun, data, visited, params)
         if len(path) > params[2]: # Check number of segments in path
             possible_paths.append(path)
@@ -236,21 +235,21 @@ def find_lines(grid, tfun, data, params):
     lines = [] # Keep track of line paths
     visited = set() # Keep track of assigned points
     num_points = data.shape[0]
-    explore = load_queue(data.shape[0])
-    count_progress = data.shape[0]
+    explore = load_queue(num_points)
+    count_progress = 0
     while not explore.empty():
-        update_progress(num_points - count_progress, num_points)
+        update_progress(count_progress, num_points)
         curr = explore.get()
         if curr not in visited:
-            best_path = find_best_path(curr, grid, tfun, data, visited, params)
-            if best_path:
-                lines.append(best_path)
-                for idx in best_path:
+            path = find_best_path(curr, grid, tfun, data, visited, params)
+            if path:
+                lines.append(path)
+                for idx in path:
                     visited.add(idx)
-                    count_progress -= 1
+                    count_progress += 1
             else:
                 visited.add(curr)
-                count_progress -= 1
+                count_progress += 1
     return lines
 
 def main():
